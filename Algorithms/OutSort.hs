@@ -2,7 +2,7 @@
 -- stack script --resolver lts-9.2 --optimize
 {-# LANGUAGE LambdaCase, OverloadedStrings, FlexibleContexts, BangPatterns, PackageImports #-}
 
-module OutSort
+module Algorithms.OutSort
     ( outsort
     , isolateBySize
     ) where
