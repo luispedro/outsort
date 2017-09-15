@@ -29,8 +29,6 @@ import qualified Data.Conduit.Binary as CB
 import qualified Data.Conduit as C
 import           Control.Monad.Catch
 
-import "Glob" System.FilePath.Glob
-
 import qualified Data.Conduit.Combinators as CC
 import qualified Data.Conduit.List as CL
 import qualified Data.Conduit.Binary as CB
@@ -86,14 +84,14 @@ sortPByBounds threads v start end
     | end - start < 1024 = sortByBounds compare v start end
     | otherwise = do
         mid <- pivot v start end
-        k <- VGM.unstablePartition (< mid) v
+        k <- unstablePartition (< mid) v start end
         let t1 :: Int
             t1
                 | k - start < 1024 = 1
                 | end - k < 1024 = threads - 1
                 | otherwise = threads `div` 2
             t2 = threads - t1
-        void $ A.concurrently
+        A.concurrently_
             (sortPByBounds t1 v start k)
             (sortPByBounds t2 v k end)
 
@@ -107,6 +105,7 @@ pivot v start end = do
             then min b c
             else max a c
 
+unstablePartition f v start end = (+ start) <$> VGM.unstablePartition f (VM.unsafeSlice start (end - start) v)
 
 isolateBySize :: Monad m => (a -> Int) -> Int -> C.Conduit a m a
 isolateBySize sizer maxsize = C.await >>= \case
