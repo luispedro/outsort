@@ -9,29 +9,18 @@ module Algorithms.OutSort
 
 import "temporary" System.IO.Temp (withSystemTempDirectory)
 
-import System.IO
 import Control.Monad
 import Control.Monad.IO.Class
 import qualified Data.Vector as V
 import qualified Control.Concurrent.Async as A
-import qualified Data.Vector.Algorithms.Heap as VA
 import qualified Data.Vector.Mutable as VM
 import           Data.Vector.Algorithms.Intro (sortByBounds)
-import           Data.Vector.Algorithms.Search
-import qualified Data.Vector.Unboxed.Mutable as VUM
 import qualified Data.Vector.Generic.Mutable as VGM
-import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString as B
-import qualified Data.ByteString.Char8 as B8
 import qualified Data.Conduit.Combinators as CC
-import qualified Data.Conduit.List as CL
 import qualified Data.Conduit.Binary as CB
 import qualified Data.Conduit as C
-import           Control.Monad.Catch
 
-import qualified Data.Conduit.Combinators as CC
-import qualified Data.Conduit.List as CL
-import qualified Data.Conduit.Binary as CB
 import           Data.Conduit ((.|))
 import           Data.Conduit.Algorithms
 import           System.FilePath
@@ -52,7 +41,7 @@ outsort reader writer chunk input output= withSystemTempDirectory "sort" $ \tdir
                 .| writer
                 .| output
      where
-        writePartials tdir = writePartials' tdir 0 []
+        writePartials tdir = writePartials' tdir (0 :: Int) []
         writePartials' tdir n fs = C.await >>= \case
             Nothing -> return fs
             Just vs -> do
