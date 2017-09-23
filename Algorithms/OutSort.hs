@@ -22,6 +22,7 @@ import qualified Data.Conduit.Binary as CB
 import qualified Data.Conduit as C
 
 import           Data.Conduit ((.|))
+import           Data.Conduit.Algorithms.Utils (awaitJust)
 import           Data.Conduit.Algorithms
 import           System.FilePath
 import           Control.Monad.Trans.Resource
@@ -29,7 +30,13 @@ import           Control.Concurrent (getNumCapabilities)
 
 type RIO = ResourceT IO
 
-outsort :: Ord a => C.Conduit B.ByteString RIO a -> C.Conduit a RIO B.ByteString -> C.Conduit a RIO a -> C.Source RIO B.ByteString -> C.Sink B.ByteString RIO b -> IO b
+outsort :: Ord a =>
+            C.Conduit B.ByteString RIO a -- ^ decoder
+            -> C.Conduit a RIO B.ByteString -- ^ encoder
+            -> C.Conduit a RIO a -- ^ isolate a block
+            -> C.Source RIO B.ByteString -- ^ initial input
+            -> C.Sink B.ByteString RIO b -- ^ final output
+            -> IO b
 outsort reader writer chunk input output= withSystemTempDirectory "sort" $ \tdir -> do
         fs <- C.runConduitRes $
             input
@@ -97,16 +104,13 @@ pivot v start end = do
 unstablePartition f v start end = (+ start) <$> VGM.unstablePartition f (VM.unsafeSlice start (end - start) v)
 
 isolateBySize :: Monad m => (a -> Int) -> Int -> C.Conduit a m a
-isolateBySize sizer maxsize = C.await >>= \case
-            Nothing -> return ()
-            Just next -> do
+isolateBySize sizer maxsize = awaitJust $ \next -> do
                     C.yield next
                     isolateBySize' (sizer next)
     where
-        isolateBySize' seen = C.await >>= \case
-            Nothing -> return ()
-            Just next
-                | seen + sizer next < maxsize -> do
-                    C.yield next
-                    isolateBySize' $ seen + sizer next
-                | otherwise -> C.leftover next
+        isolateBySize' seen = awaitJust $ \next ->
+                if seen + sizer next < maxsize
+                    then do
+                        C.yield next
+                        isolateBySize' $ seen + sizer next
+                    else C.leftover next
