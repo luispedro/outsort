@@ -5,6 +5,7 @@
 module Algorithms.OutSort
     ( outsort
     , isolateBySize
+    , RIO
     ) where
 
 import "temporary" System.IO.Temp (withSystemTempDirectory)
