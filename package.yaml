@@ -1,0 +1,41 @@
+name:           outsort
+version:        0.0.0
+synopsis:       External sorting
+category:       MIT
+license:        GPL-3
+maintainer:     Luis Pedro Coelho <coelho@embl.de>
+ghc-options:    -Wall -O2 -threaded -fwarn-tabs
+
+dependencies:
+  - base >= 4.7 && < 5
+  - async
+  - bytestring
+  - conduit
+  - conduit-algorithms
+  - conduit-extra
+  - conduit-combinators
+  - containers
+  - data-hash
+  - deepseq
+  - directory
+  - exceptions
+  - filepath
+  - filemanip
+  - primitive
+  - MissingH
+  - resourcet
+  - temporary
+  - text
+  - transformers
+  - transformers-base
+  - safe
+  - vector
+  - vector-algorithms
+
+
+source-dirs:
+  - ./
+
+executables:
+  SortLines:
+    main: SortLines.hs
