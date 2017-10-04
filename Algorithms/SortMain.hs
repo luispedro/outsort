@@ -3,6 +3,7 @@
 module Algorithms.SortMain
     ( sortMain
     , sortMain'
+    , sortMainStorable
     , mergeMain
     , mergeMain'
     ) where
@@ -23,6 +24,7 @@ import           Safe (atDef)
 import           System.Exit (exitFailure)
 import           Control.Monad.Trans.Resource (MonadResource)
 import           Control.Monad.IO.Class (MonadIO)
+import           Foreign
 
 import Algorithms.OutSort
 
@@ -120,6 +122,23 @@ sortMain :: Ord a =>
 sortMain decoder encoder isolator = do
     args <- getArgs
     sortMain' args decoder encoder isolator
+
+-- | Simple main function
+sortMainStorable :: (Storable a, Ord a, Show a) =>
+                 a
+                 -> Int
+                -> IO ()
+sortMainStorable dummy chunkSize = do
+    args <- getArgs
+    let opts = parseArgs args
+        nthreads = nJobs opts
+    setNumCapabilities nthreads
+    ifiles <- extractIFiles opts
+    outsortStorable
+        dummy
+        chunkSize
+        (readAllFiles (optVerbose opts) ifiles)
+        (CB.sinkFileCautious $ optOFile opts)
 
 mergeMain' :: Ord a =>
             [String] -- ^ command line arguments
