@@ -102,11 +102,15 @@ outsortStorable _ nsize input output = withSystemTempDirectory "sort" $ \tdir ->
             input
                 .| partialsStorable
                 .| writePartials tdir writeStorable
-        C.runConduitRes $
-            mergeC [CB.sourceFile f .| readStorable | f <- fs]
-                .| CC.conduitVector 256
-                .| asyncMapC 16 encodeV
-                .| output
+        case fs of
+            [f] -> C.runConduitRes $
+                        CB.sourceFile f .| output
+            _ -> do
+                C.runConduitRes $
+                    mergeC [CB.sourceFile f .| readStorable | f <- fs]
+                        .| CC.conduitVector 256
+                        .| asyncMapC 16 encodeV
+                        .| output
      where
         writeStorable fp vs =
             withOutputFile fp $ \h ->
