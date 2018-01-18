@@ -3,6 +3,7 @@
 
 Example
 
+```haskell
     import qualified Data.Conduit.Combinators as CC
     import qualified Data.Conduit.Binary as CB
 
@@ -14,6 +15,7 @@ Example
         CB.lines
         CC.unlinesAscii
         (isolateBySize (const 1) 500000)
+```
 
 All that is needed is a decoder (`Conduit ByteString m a`), an encoder
 (`Conduit ByteString m a`), and a function to split the input into blocks
