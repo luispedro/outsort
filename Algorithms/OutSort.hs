@@ -40,11 +40,11 @@ import           System.IO.SafeWrite (withOutputFile)
 type RIO = ResourceT IO
 
 outsort :: forall a b. Ord a =>
-            C.Conduit B.ByteString RIO a -- ^ decoder
-            -> C.Conduit a RIO B.ByteString -- ^ encoder
-            -> C.Conduit a RIO a -- ^ isolate a block
-            -> C.Source RIO B.ByteString -- ^ initial input
-            -> C.Sink B.ByteString RIO b -- ^ final output
+            C.ConduitT B.ByteString a RIO () -- ^ decoder
+            -> C.ConduitT a B.ByteString RIO () -- ^ encoder
+            -> C.ConduitT a a RIO () -- ^ isolate a block
+            -> C.ConduitT () B.ByteString RIO () -- ^ initial input
+            -> C.ConduitT B.ByteString C.Void RIO b -- ^ final output
             -> IO b
 outsort reader writer chunk input output= withSystemTempDirectory "sort" $ \tdir -> do
         fs <- C.runConduitRes $
@@ -69,18 +69,18 @@ outsort reader writer chunk input output= withSystemTempDirectory "sort" $ \tdir
                 C.yield vs'
                 partials
 
-yieldV :: forall a v. VGM.MVector v a => v (PrimState IO) a -> C.Producer RIO a
+yieldV :: forall a b v. VGM.MVector v a => v (PrimState IO) a -> C.ConduitT b a RIO ()
 yieldV v =
     forM_ [0 .. VGM.length v - 1] $ \ix -> do
         (liftIO $ VGM.read v ix) >>= C.yield
 
-writePartials :: forall a v. VGM.MVector v a => FilePath -> (FilePath -> (v (PrimState IO) a) -> IO ()) -> C.Sink (v (PrimState IO) a) RIO [FilePath]
+writePartials :: forall a v. VGM.MVector v a => FilePath -> (FilePath -> (v (PrimState IO) a) -> IO ()) -> C.ConduitT (v (PrimState IO) a) C.Void RIO [FilePath]
 writePartials tdir writer = do
         empty <- liftIO $ A.async (return ())
         writePartials' (0 :: Int) [] empty
     where
 
-        writePartials' :: Int -> [FilePath] -> A.Async () -> C.Sink (v (PrimState IO) a) RIO [FilePath]
+        writePartials' :: Int -> [FilePath] -> A.Async () -> C.ConduitT (v (PrimState IO) a) C.Void RIO [FilePath]
         writePartials' n fs prev = do
             next <- C.await
             liftIO $ A.wait prev
@@ -94,8 +94,8 @@ writePartials tdir writer = do
 outsortStorable :: forall a. (Ord a, Storable a, Show a) =>
            a -- ^ dummy element, necessary for specifying type, can be undefined
            -> Int -- ^ number of elements per block
-           -> C.Source RIO B.ByteString -- ^ initial input
-           -> C.Sink B.ByteString RIO () -- ^ final output
+           -> C.ConduitT () B.ByteString RIO () -- ^ initial input
+           -> C.ConduitT B.ByteString C.Void RIO () -- ^ final output
            -> IO ()
 outsortStorable _ nsize input output = withSystemTempDirectory "sort" $ \tdir -> do
         fs <- C.runConduitRes $
@@ -126,13 +126,13 @@ outsortStorable _ nsize input output = withSystemTempDirectory "sort" $ \tdir ->
                 VS.unsafeWith v $ \ps ->
                     copyBytes pd (castPtr ps) (nBytes * VS.length v)
 
-        readStorable :: C.Conduit B.ByteString RIO a
+        readStorable :: C.ConduitT B.ByteString a RIO ()
         readStorable = do
             vs <- decodeN 64
             unless (VSM.null vs) $ do
                 yieldV vs
                 readStorable
-        decodeN :: Int -> C.Consumer B.ByteString RIO (VSM.MVector (PrimState IO) a)
+        decodeN :: Int -> C.ConduitT B.ByteString b RIO (VSM.MVector (PrimState IO) a)
         decodeN size = do
                 vec <- liftIO (VSM.unsafeNew size)
                 written <- CC.takeE (nBytes * size)
@@ -141,7 +141,7 @@ outsortStorable _ nsize input output = withSystemTempDirectory "sort" $ \tdir ->
                     then vec
                     else VSM.slice 0 (written `div` nBytes) vec
             where
-                decodeN' :: (VSM.MVector (PrimState IO) Word8) -> Int -> C.Consumer B.ByteString RIO Int
+                decodeN' :: (VSM.MVector (PrimState IO) Word8) -> Int -> C.ConduitT B.ByteString b RIO Int
                 decodeN' dest ix = C.await >>= \case
                     Nothing -> return ix
                     Just block -> do
@@ -149,7 +149,7 @@ outsortStorable _ nsize input output = withSystemTempDirectory "sort" $ \tdir ->
                                 BU.unsafeUseAsCString block $ \ps ->
                                     copyBytes (pd `plusPtr` ix) ps (B.length block))
                             decodeN' dest (ix + B.length block)
-        partialsStorable :: C.Conduit B.ByteString RIO (VSM.MVector (PrimState IO) a)
+        partialsStorable :: C.ConduitT B.ByteString (VSM.MVector (PrimState IO) a) RIO ()
         partialsStorable = do
             vs <- decodeN nsize
             unless (VGM.null vs) $ do
@@ -173,7 +173,7 @@ sortPByBounds dep v start end
             (sortPByBounds (dep + 1) v k end)
 
 
-isolateBySize :: Monad m => (a -> Int) -> Int -> C.Conduit a m a
+isolateBySize :: Monad m => (a -> Int) -> Int -> C.ConduitT a a m ()
 isolateBySize sizer maxsize = awaitJust $ \next -> do
                     C.yield next
                     isolateBySize' (sizer next)
