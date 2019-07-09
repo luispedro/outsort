@@ -15,7 +15,6 @@ dependencies:
   - conduit-extra
   - conduit-combinators
   - containers
-  - data-hash
   - deepseq
   - directory
   - exceptions
@@ -29,6 +28,7 @@ dependencies:
   - transformers
   - transformers-base
   - safe
+  - safeio
   - vector
   - vector-algorithms
 
