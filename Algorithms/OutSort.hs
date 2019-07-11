@@ -178,7 +178,7 @@ isolateBySize sizer maxsize = awaitJust $ \next -> do
                     C.yield next
                     isolateBySize' (sizer next)
     where
-        isolateBySize' seen = awaitJust $ \next ->
+        isolateBySize' !seen = awaitJust $ \next ->
                 if seen + sizer next < maxsize
                     then do
                         C.yield next
