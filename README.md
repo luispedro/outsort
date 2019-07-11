@@ -17,9 +17,9 @@ Example
         (isolateBySize (const 1) 500000)
 ```
 
-All that is needed is a decoder (`Conduit ByteString m a`), an encoder
-(`Conduit ByteString m a`), and a function to split the input into blocks
-(`Consumer a m a`). Given these elements, the result is a programme which can
+All that is needed is a decoder (`ConduitT ByteString a m ()`), an encoder
+(`ConduitT ByteString a m ()`), and a function to split the input into blocks
+(`ConduitT a a m ()`). Given these elements, the result is a programme which can
 sort arbitrarily large inputs using external memory.
 
 Licence: MIT
